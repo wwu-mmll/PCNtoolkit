@@ -60,6 +60,7 @@ def execute_nm(processing_dir,
                batch_size,
                memory,
                duration,
+               cpu,
                normative_path=None,
                func='estimate',
                interactive=False,
@@ -167,10 +168,11 @@ def execute_nm(processing_dir,
                                 batch_respfile_path,
                                 func=func,
                                 memory=memory,
+                                cpu=cpu,
                                 duration=duration,
                                 **kwargs)
-                    sbatch_nm(job_path=batch_job_path,
-                            log_path=log_path)
+#                    sbatch_nm(job_path=batch_job_path,
+#                            log_path=log_path)
                 elif cluster_spec == 'new':
                     # this part requires addition in different envioronment [
                     sbatchwrap_nm(processing_dir=batch_processing_dir, 
@@ -208,10 +210,11 @@ def execute_nm(processing_dir,
                                 batch_respfile_path,
                                 func=func,
                                 memory=memory,
+                                cpu=cpu,
                                 duration=duration,
                                 **kwargs)
-                    sbatch_nm(job_path=batch_job_path,
-                              log_path=log_path)
+#                    sbatch_nm(job_path=batch_job_path,
+#                              log_path=log_path)
                 elif cluster_spec == 'new':
                     # this part requires addition in different envioronment [
                     bashwrap_nm(processing_dir=batch_processing_dir, func=func,
@@ -250,10 +253,11 @@ def execute_nm(processing_dir,
                                 batch_respfile_path,
                                 func=func,
                                 memory=memory,
+                                cpu=cpu,
                                 duration=duration,
                                 **kwargs)
-                    sbatch_nm(job_path=batch_job_path,
-                            log_path=log_path)
+#                    sbatch_nm(job_path=batch_job_path,
+#                            log_path=log_path)
                 elif cluster_spec == 'new':
                     # this part requires addition in different envioronment [
                     bashwrap_nm(processing_dir=batch_processing_dir, func=func,
@@ -1009,6 +1013,7 @@ def sbatchwrap_nm(processing_dir,
                   covfile_path,
                   respfile_path,
                   memory,
+                  cpu,
                   duration,
                   func='estimate',
                   **kwargs):
@@ -1050,13 +1055,15 @@ def sbatchwrap_nm(processing_dir,
 
     sbatch_init='#!/bin/bash\n'
     sbatch_jobname='#SBATCH --job-name=' + processing_dir + '\n'
-    sbatch_account='#SBATCH --account=p33_norment\n'
     sbatch_nodes='#SBATCH --nodes=1\n'
     sbatch_tasks='#SBATCH --ntasks=1\n'
-    sbatch_time='#SBATCH --time=' + str(duration) + '\n'
     sbatch_memory='#SBATCH --mem-per-cpu=' + str(memory) + '\n'
-    sbatch_module='module purge\n'
-    sbatch_anaconda='module load anaconda3\n'
+    sbatch_cpus='#SBATCH --cpus-per-task=' + str(cpu) + '\n'
+    sbatch_time='#SBATCH --time=' + str(duration) + '\n'
+    sbatch_partition='#SBATCH --partition=normal\n'
+    sbatch_module='module load Miniconda3\n'
+    sbatch_conda_init='eval "$(conda shell.bash hook)"\n'
+    sbatch_conda_activate='conda activate normative_modelling\n'
     sbatch_exit='set -o errexit\n'
 
     #echo -n "This script is running on "
@@ -1064,12 +1071,15 @@ def sbatchwrap_nm(processing_dir,
     
     bash_environment = [sbatch_init + 
                         sbatch_jobname +
-                        sbatch_account +
                         sbatch_nodes +
                         sbatch_tasks +
+                        sbatch_memory +
+                        sbatch_cpus +
                         sbatch_time +
+                        sbatch_partition +
                         sbatch_module +
-                        sbatch_anaconda]
+                        sbatch_conda_init +
+                        sbatch_conda_activate]
 
     # creates call of function for normative modelling
     if (testrespfile_path is not None) and (testcovfile_path is not None):
