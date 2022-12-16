@@ -845,7 +845,7 @@ def transfer(covfile, respfile, testcov=None, testresp=None, maskfile=None,
     :param maskfile: mask used to apply to the data (nifti only)
     :param testcov: Test covariates
     :param testresp: Test responses
-    :param model_path: Directory containing the normative model and metadata
+    :param model_path: Directory containing the normative model and metadata (for use with parallel specify the parent directory)
     :param trbefile: Training batch effects file
     :param batch_size: batch size (for use with normative_parallel)
     :param job_id: batch id
@@ -897,6 +897,10 @@ def transfer(covfile, respfile, testcov=None, testresp=None, maskfile=None,
         batch_size = int(batch_size)
         job_id = int(job_id) - 1
 
+    # get model path for the specific batch
+    if batch_size is not None:
+        model_path = os.path.join(model_path, f"batch_{job_id +1}", 'Models')
+
     # check for models directory and load meta data file
     if not os.path.isdir(model_path):
         print('Models directory does not exist!')
@@ -927,20 +931,14 @@ def transfer(covfile, respfile, testcov=None, testresp=None, maskfile=None,
 
     # scale training data
     if inscaler in ['standardize', 'minmax', 'robminmax']:
-        if job_id is not None:
-            X = scaler_cov[job_id][0].transform(X)
-        else:
-            X = scaler_cov[0].transform(X)
+        X = scaler_cov[0].transform(X)
     
     feature_num = Y.shape[1]
     mY = np.mean(Y, axis=0)
     sY = np.std(Y, axis=0)  
     
     if outscaler in ['standardize', 'minmax', 'robminmax']:
-        if job_id is not None:
-            Y = scaler_resp[job_id][0].transform(Y)
-        else:
-            Y = scaler_resp[0].transform(Y)
+        Y = scaler_resp[0].transform(Y)
     
     batch_effects_train = fileio.load(trbefile)
     
@@ -953,10 +951,7 @@ def transfer(covfile, respfile, testcov=None, testresp=None, maskfile=None,
         ts_sample_num = Xte.shape[0]
 
         if inscaler in ['standardize', 'minmax', 'robminmax']:
-            if job_id is not None:
-                X = scaler_cov[job_id][0].transform(X)
-            else:
-                Xte = scaler_cov[0].transform(Xte)
+            Xte = scaler_cov[0].transform(Xte)
         
         if testresp is not None:
             Yte, testmask = load_response_vars(testresp, maskfile)
@@ -985,14 +980,8 @@ def transfer(covfile, respfile, testcov=None, testresp=None, maskfile=None,
             nm = norm_init(X)
 
             try:
-                if batch_size is not None: # when using normative_parallel
-                    print("Transferring model ", job_id*batch_size+i+1)
-                    nm = nm.load(os.path.join(model_path, 'NM_0_' +
-                                              str(job_id*batch_size+i) + inputsuffix +
-                                              '.pkl'))
-                else:
-                    print("Transferring model ", i+1, "of", feature_num)
-                    nm = nm.load(os.path.join(model_path, 'NM_0_' + str(i) +
+                print("Transferring model ", job_id*batch_size+i+1, "of", feature_num)
+                nm = nm.load(os.path.join(model_path, 'NM_0_' + str(i) +
                                               inputsuffix + '.pkl'))
 
                 nm = nm.estimate_on_new_sites(X, Y[:,i], batch_effects_train)
@@ -1007,10 +996,7 @@ def transfer(covfile, respfile, testcov=None, testresp=None, maskfile=None,
                     yhat, s2 = nm.predict_on_new_sites(Xte, batch_effects_test)
 
                     if outscaler == 'standardize':
-                        if job_id is not None:
-                            Yhat[:, i] = scaler_resp[job_id][0].inverse_transform(yhat.squeeze(), index=i)
-                        else:
-                            Yhat[:, i] = scaler_resp[0].inverse_transform(yhat.squeeze(), index=i)
+                        Yhat[:, i] = scaler_resp[0].inverse_transform(yhat.squeeze(), index=i)
                         S2[:, i] = s2.squeeze() * sY[i] ** 2
                     elif outscaler in ['minmax', 'robminmax']:
                         Yhat[:, i] = scaler_resp[0].inverse_transform(yhat, index=i)
@@ -1068,10 +1054,7 @@ def transfer(covfile, respfile, testcov=None, testresp=None, maskfile=None,
 
             if testcov is not None:
                 if outscaler == 'standardize':
-                    if job_id is not None:
-                        Yhat[:, i] = scaler_resp[job_id][0].inverse_transform(yhat.squeeze(), index=i)
-                    else:
-                        Yhat[:, i] = scaler_resp[0].inverse_transform(yhat.squeeze(), index=i)
+                    Yhat[:, i] = scaler_resp[0].inverse_transform(yhat.squeeze(), index=i)
                     S2[:, i] = s2.squeeze() * sY[i] ** 2
                 elif outscaler in ['minmax', 'robminmax']:
                     Yhat[:, i] = scaler_resp[0].inverse_transform(yhat, index=i)
@@ -1120,14 +1103,6 @@ def transfer(covfile, respfile, testcov=None, testresp=None, maskfile=None,
         save_results(respfile, Yhat, S2, maskvol, Z=Z, results=results,
                      outputsuffix=outputsuffix)
 
-        # saving model meta-data for use in predict()
-        print('Saving model meta-data...')
-        with open('Models/meta_data.md', 'wb') as file:
-            pickle.dump({'mean_resp':mY, 'std_resp':sY,
-                         'scaler_cov':scaler_cov, 'scaler_resp':scaler_resp,
-                         'regressor':alg, 'inscaler':inscaler,
-                         'outscaler':outscaler},
-                        file, protocol=PICKLE_PROTOCOL)
         
         return (Yhat, S2, Z)
 
