@@ -725,37 +725,38 @@ def collect_nm(processing_dir,
             if not os.path.isdir(processing_dir + 'Models') and \
                os.path.exists(os.path.join(batches[0], 'Models')):
                 os.mkdir(processing_dir + 'Models')
-                
-            meta_filenames = glob.glob(processing_dir + 'batch_*/Models/' + 
-                                       'meta_data.md')
-            mY = []
-            sY = []
-            X_scalers = []
-            Y_scalers = []
-            if meta_filenames:
-                meta_filenames = fileio.sort_nicely(meta_filenames)
-                with open(meta_filenames[0], 'rb') as file:
-                    meta_data = pickle.load(file)
-                
-                for meta_filename in meta_filenames:
-                    with open(meta_filename, 'rb') as file:
+
+            if func!='transfer':
+                meta_filenames = glob.glob(processing_dir + 'batch_*/Models/' +
+                                           'meta_data.md')
+                mY = []
+                sY = []
+                X_scalers = []
+                Y_scalers = []
+                if meta_filenames:
+                    meta_filenames = fileio.sort_nicely(meta_filenames)
+                    with open(meta_filenames[0], 'rb') as file:
                         meta_data = pickle.load(file)
-                    mY.append(meta_data['mean_resp'])
-                    sY.append(meta_data['std_resp'])
-                    if meta_data['inscaler'] in ['standardize', 'minmax', 
-                                'robminmax']:
-                        X_scalers.append(meta_data['scaler_cov'])
-                    if meta_data['outscaler'] in ['standardize', 'minmax', 
-                                'robminmax']:
-                        Y_scalers.append(meta_data['scaler_resp'])
-                meta_data['mean_resp'] = np.squeeze(np.column_stack(mY)) 
-                meta_data['std_resp'] = np.squeeze(np.column_stack(sY))
-                meta_data['scaler_cov'] = X_scalers 
-                meta_data['scaler_resp'] = Y_scalers
-                
-                with open(os.path.join(processing_dir, 'Models', 
-                                       'meta_data.md'), 'wb') as file:
-                    pickle.dump(meta_data, file, protocol=PICKLE_PROTOCOL)
+
+                    for meta_filename in meta_filenames:
+                        with open(meta_filename, 'rb') as file:
+                            meta_data = pickle.load(file)
+                        mY.append(meta_data['mean_resp'])
+                        sY.append(meta_data['std_resp'])
+                        if meta_data['inscaler'] in ['standardize', 'minmax',
+                                    'robminmax']:
+                            X_scalers.append(meta_data['scaler_cov'])
+                        if meta_data['outscaler'] in ['standardize', 'minmax',
+                                    'robminmax']:
+                            Y_scalers.append(meta_data['scaler_resp'])
+                    meta_data['mean_resp'] = np.squeeze(np.column_stack(mY))
+                    meta_data['std_resp'] = np.squeeze(np.column_stack(sY))
+                    meta_data['scaler_cov'] = X_scalers
+                    meta_data['scaler_resp'] = Y_scalers
+
+                    with open(os.path.join(processing_dir, 'Models',
+                                           'meta_data.md'), 'wb') as file:
+                        pickle.dump(meta_data, file, protocol=PICKLE_PROTOCOL)
             
             batch_dirs = glob.glob(processing_dir + 'batch_*/')
             if batch_dirs:
